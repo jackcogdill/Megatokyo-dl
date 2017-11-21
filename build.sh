@@ -5,15 +5,17 @@ cd src
 
 executable="megatokyo-dl"
 zipfile="${executable}.zip"
+temp="temp"
 
 zip "$zipfile" __main__.py *.py
 cd ..
 
 rm -f "$executable"
-mv "src/$zipfile" "$executable"
+mv "src/$zipfile" "$temp"
 
-#command="cat $executable"
-#echo -e "#! /usr/bin/env python\n$($command)" > "$executable"
+echo "#! /usr/bin/env python" > "$executable"
+cat "$temp" >> "$executable"
+rm "$temp"
 
 chmod +x "$executable"
 
