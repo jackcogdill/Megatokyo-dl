@@ -7,7 +7,7 @@ executable="megatokyo-dl"
 zipfile="${executable}.zip"
 temp="temp"
 
-zip "$zipfile" __main__.py *.py
+zip "$zipfile" __main__.py *
 cd ..
 
 rm -f "$executable"
