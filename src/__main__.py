@@ -50,19 +50,24 @@ def downloadb(url, filename=None):
     def dlProgress(am, bls, ts):
         per = am * bls * 100.0 / ts
         if per > 100:
-            per = 100.0
+            per = 100
 
         max_size = 75
         arrow_len = int(per * max_size / 100.0)
         arrow = '=' * (arrow_len - 1) + '>'
+        arrow = ('%%-%ds' % max_size) % arrow
+        if per < 100:
+            arrow = ANSI.color(arrow, 'yellow')
 
-        prog = '\r%6.1f%% [%-75s] Size: %-5s' % (per, arrow, byte_convert(ts))
+        prog = '\r%6.1f%% [%s] Size: %-5s' % (per, arrow, byte_convert(ts))
         print(prog, end='', flush=True)
 
     try:
         urllib.request.urlretrieve(url, filename, reporthook=dlProgress)
         print()
-    except urllib.error.HTTPError:
+    except:
+        if os.path.isfile(filename):
+            os.remove(filename)
         return False
 
     return True
@@ -127,9 +132,5 @@ def main():
             print('Error: Could not download \'%s\'', title)
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print()
-        print('User quit')
+    main()
 
