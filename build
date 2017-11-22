@@ -8,15 +8,15 @@ zipfile="${executable}.zip"
 temp="temp"
 
 # Create new pyc files
-rm -f *.pyc
-python -m compileall .
-zip "$zipfile" __main__.py *
+rm -rf __pycache__
+python3 -m compileall .
+zip -r "$zipfile" __main__.py __pycache__ *py
 cd ..
 
 rm -f "$executable"
 mv "src/$zipfile" "$temp"
 
-echo "#! /usr/bin/env python" > "$executable"
+echo "#! /usr/bin/env python3" > "$executable"
 cat "$temp" >> "$executable"
 rm "$temp"
 

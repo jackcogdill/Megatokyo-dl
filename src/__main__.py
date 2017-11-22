@@ -1,23 +1,22 @@
 # System packages
 import os
-import sys
-import urllib
-import urllib2
 import re
+import glob
+import urllib.request
+from bs4 import BeautifulSoup
 
 # Local packages
-from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
 import console
 import ANSI
 
-COLS, ROWS = console.getTerminalSize()
+COLS, ROWS = 0, 0
 
 def getSoup(url):
     agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36'
     header = { 'User-Agent' : agent }
-    req = urllib2.Request(url, None, header)
-    data = urllib2.urlopen(req).read()
-    return BeautifulSoup(data)
+    req = urllib.request.Request(url, None, header)
+    data = urllib.request.urlopen(req).read()
+    return BeautifulSoup(data, 'lxml')
 
 def fix_url(s):
     patt = '(%\w\w)'
@@ -25,17 +24,21 @@ def fix_url(s):
         s = s.replace(quote, urllib2.unquote(quote))
     return s
 
-def fixdir(fdir):
+def fixdir(s):
     for c in '/?<>\:*|"':
-        fdir = fdir.replace(c, '-')
-    return fdir
+        s = s.replace(c, '-')
+    return s
 
-def downloadb(url, filename=''):
-    def fileName(url):
-        return url[(url.rindex('/') +1):]
-    if filename == '': filename = fileName(fix_url(url))
-    filename = fixdir(filename)
-    url = urllib.urlopen(url).geturl()
+def downloadb(url, filename=None):
+    if not filename:
+        temp = fix_url(url)
+        filename = temp[(temp.rindex('/') +1):]
+        filename = fixdir(filename)
+
+    try:
+        url = urllib.request.urlopen(url).geturl()
+    except urllib.error.HTTPError:
+        return False
 
     def byte_convert(b):
         n, b = 0, float(b)
@@ -46,61 +49,87 @@ def downloadb(url, filename=''):
 
     def dlProgress(am, bls, ts):
         per = am * bls * 100.0 / ts
-        if per > 100: per = 100.0
-        s = '\r%s[%s]' % (('%6.1f%%' % per), (('=' * int(per * 75 / 100))[:-1]+'>').ljust(75, ' '))
-        s += ' Size: ' + byte_convert(ts)
-        sys.stdout.write(s + ' ' * (COLS - len(s)))
-        sys.stdout.flush()
+        if per > 100:
+            per = 100.0
+
+        max_size = 75
+        arrow_len = int(per * max_size / 100.0)
+        arrow = '=' * (arrow_len - 1) + '>'
+
+        prog = '\r%6.1f%% [%-75s] Size: %-5s' % (per, arrow, byte_convert(ts))
+        print(prog, end='', flush=True)
 
     try:
-        urllib.urlretrieve(url, filename, reporthook=dlProgress)
-        print
-    except:
-        if os.path.isfile(filename):
-            os.remove(filename)
+        urllib.request.urlretrieve(url, filename, reporthook=dlProgress)
+        print()
+    except urllib.error.HTTPError:
         return False
+
+    return True
 
 
 def main():
-    print 'Downloading info...',
-    url = 'http://megatokyo.com/strips/'
+    print('Setting up...', end=' ', flush=True)
+    global COLS, ROWS
+    COLS, ROWS = console.getTerminalSize()
 
     mg = 'Megatokyo'
     if not os.path.isdir(mg):
         os.mkdir(mg)
     os.chdir(mg)
+    print('done.')
 
+    print('Downloading info...', end=' ', flush=True)
     search = 'http://megatokyo.com/archive.php?list_by=date'
     soup = getSoup(search)
+    print('done.')
 
+    print('Parsing...', end=' ', flush=True)
     found = None
     for div in soup.findAll('div'):
-        if div.has_key('class') and div['class'] == 'content' and div.h2.string == 'Comics by Date':
+        if div.has_attr('class') and 'content' in div['class'] and div.h2.string == 'Comics by Date':
             found = div
             break
     else:
-        print('Error: Could not find list of comics')
+        print('Error: Could not find list of comics.')
         exit(1)
 
     titles = [li.a.string for li in found.findAll('li')]
-    print('found %d titles' % len(titles))
-    exit(0)
+    print('found %d titles.' % len(titles))
 
-    for i in titles:
-        s = str(i)[:4].rjust(4, '0') + '.gif'
-        fname = fixdir(i + s[-4:])
-        if not os.path.isfile(fname):
-            print 'Downloading', i
-            if not downloadb(url + s, filename=fname):
-                s = s[:-3] + 'jpg'
-                fname = fixdir(i + s[-4:])
-                if not os.path.isfile(fname):
-                    if not downloadb(url + s, filename=fname):
-                        s = s[:-3] + 'png'
-                        fname = fixdir(i + s[-4:])
-                        if not os.path.isfile(fname): downloadb(url + s, filename=fname)
-        ANSI.clear(2)
+    types = ('.gif', '.png', '.jpg')
+    files = set()
+    for ext in types:
+        for file in glob.glob('*' + ext):
+            files.add(file)
+
+    url = 'http://megatokyo.com/strips/'
+    for title in titles:
+        number = title[:4]
+        print('Downloading %s...' % number)
+
+        found = False
+        downloaded = False
+        for ext in types:
+            strip = url + number + ext
+            fname = fixdir(title + ext)
+
+            if fname in files:
+                found = True
+                break
+            elif downloadb(strip, filename=fname):
+                downloaded = True
+                break
+
+        if found:
+            ANSI.clear(2)
+        elif not downloaded:
+            print('Error: Could not download \'%s\'', title)
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print()
+        print('User quit')
 
