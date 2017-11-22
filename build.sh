@@ -7,6 +7,9 @@ executable="megatokyo-dl"
 zipfile="${executable}.zip"
 temp="temp"
 
+# Create new pyc files
+rm -f *.pyc
+python -m compileall .
 zip "$zipfile" __main__.py *
 cd ..
 

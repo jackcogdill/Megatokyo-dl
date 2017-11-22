@@ -1,26 +1,23 @@
-import os, sys, urllib, urllib2, console, re
+# System packages
+import os
+import sys
+import urllib
+import urllib2
+import re
+
+# Local packages
 from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup
+import console
+import ANSI
 
-user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_6_8) \
-        AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.97 Safari/537.11'
-
-header = { 'User-Agent': user_agent }
-(width, height) = console.getTerminalSize()
-
-def getPage(url):
-    req = urllib2.Request(url, None, header)
-    return urllib2.urlopen(req).read()
+COLS, ROWS = console.getTerminalSize()
 
 def getSoup(url):
-    return BeautifulSoup(getPage(url))
-
-def clrlns(num_lines):
-    num_lines += 1
-    def moveCursorUp(n):
-        print '\033[%sA' % n
-    moveCursorUp(num_lines)
-    for i in range(num_lines -1): print ' ' * width
-    moveCursorUp(num_lines)
+    agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/62.0.3202.94 Safari/537.36'
+    header = { 'User-Agent' : agent }
+    req = urllib2.Request(url, None, header)
+    data = urllib2.urlopen(req).read()
+    return BeautifulSoup(data)
 
 def fix_url(s):
     patt = '(%\w\w)'
@@ -52,7 +49,7 @@ def downloadb(url, filename=''):
         if per > 100: per = 100.0
         s = '\r%s[%s]' % (('%6.1f%%' % per), (('=' * int(per * 75 / 100))[:-1]+'>').ljust(75, ' '))
         s += ' Size: ' + byte_convert(ts)
-        sys.stdout.write(s + ' ' * (width - len(s)))
+        sys.stdout.write(s + ' ' * (COLS - len(s)))
         sys.stdout.flush()
 
     try:
@@ -63,41 +60,47 @@ def downloadb(url, filename=''):
             os.remove(filename)
         return False
 
-print 'Downloading info...',
-url = 'http://megatokyo.com/strips/'
 
-mg = 'Megatokyo'
-if not os.path.isdir(mg):
-    os.mkdir(mg)
-os.chdir(mg)
+def main():
+    print 'Downloading info...',
+    url = 'http://megatokyo.com/strips/'
 
-search = 'http://megatokyo.com/archive.php?list_by=date'
-soup = getSoup(search)
+    mg = 'Megatokyo'
+    if not os.path.isdir(mg):
+        os.mkdir(mg)
+    os.chdir(mg)
 
-found = None
-for div in soup.findAll('div'):
-    if div.has_key('class') and div['class'] == 'content' and div.h2.string == 'Comics by Date':
-        found = div
-        break
-else:
-    print('Error: Could not find list of comics')
-    exit(1)
+    search = 'http://megatokyo.com/archive.php?list_by=date'
+    soup = getSoup(search)
 
-titles = [li.a.string for li in found.findAll('li')]
-print('found %d titles' % len(titles))
-exit(0)
+    found = None
+    for div in soup.findAll('div'):
+        if div.has_key('class') and div['class'] == 'content' and div.h2.string == 'Comics by Date':
+            found = div
+            break
+    else:
+        print('Error: Could not find list of comics')
+        exit(1)
 
-for i in titles:
-    s = str(i)[:4].rjust(4, '0') + '.gif'
-    fname = fixdir(i + s[-4:])
-    if not os.path.isfile(fname):
-        print 'Downloading', i
-        if not downloadb(url + s, filename=fname):
-            s = s[:-3] + 'jpg'
-            fname = fixdir(i + s[-4:])
-            if not os.path.isfile(fname):
-                if not downloadb(url + s, filename=fname):
-                    s = s[:-3] + 'png'
-                    fname = fixdir(i + s[-4:])
-                    if not os.path.isfile(fname): downloadb(url + s, filename=fname)
-    clrlns(2)
+    titles = [li.a.string for li in found.findAll('li')]
+    print('found %d titles' % len(titles))
+    exit(0)
+
+    for i in titles:
+        s = str(i)[:4].rjust(4, '0') + '.gif'
+        fname = fixdir(i + s[-4:])
+        if not os.path.isfile(fname):
+            print 'Downloading', i
+            if not downloadb(url + s, filename=fname):
+                s = s[:-3] + 'jpg'
+                fname = fixdir(i + s[-4:])
+                if not os.path.isfile(fname):
+                    if not downloadb(url + s, filename=fname):
+                        s = s[:-3] + 'png'
+                        fname = fixdir(i + s[-4:])
+                        if not os.path.isfile(fname): downloadb(url + s, filename=fname)
+        ANSI.clear(2)
+
+if __name__ == '__main__':
+    main()
+
