@@ -65,16 +65,6 @@ def downloadb(url, filename=None):
         filename = fixdir(filename)
 
     try:
-        url = urllib.request.urlopen(url).geturl()
-    except KeyboardInterrupt:
-        print()
-        print('User quit')
-        exit(1)
-    except urllib.error.HTTPError:
-        print('Could not open url: \'%s\'' % url)
-        return False
-
-    try:
         urllib.request.urlretrieve(url, filename, reporthook=dlProgress)
         print()
     except KeyboardInterrupt:
