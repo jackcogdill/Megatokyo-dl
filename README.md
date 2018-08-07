@@ -2,5 +2,8 @@
 
 ## Dependencies
 
-`sudo -H pip install BeautifulSoup4`
-`sudo -H pip install lxml`
+`sudo -H pip install BeautifulSoup4 lxml`
+
+## Build
+
+Simply run `./build`
